@@ -9,6 +9,10 @@ import polars as pl
 
 
 class BaseBlock:
+    """
+    Базовый класс для элементов документа. Не используется напрямую.
+    Реализует общие методы для работы с docx и выравниванием.
+    """
     MAP_ALIGMENT = {
         'center': docx.enum.text.WD_ALIGN_PARAGRAPH.CENTER,
         'left': docx.enum.text.WD_ALIGN_PARAGRAPH.LEFT,
@@ -27,6 +31,12 @@ class BaseBlock:
 
 # Base blocks
 class PageBreak(BaseBlock):
+    """
+    Вставляет разрыв страницы в документ.
+    
+    Пример использования:
+    >>> elements.append(PageBreak())  # Добавляет разрыв страницы
+    """
     def __init__(self):
         super().__init__()
     
@@ -34,6 +44,26 @@ class PageBreak(BaseBlock):
         dock.add_page_break()
 
 class Paragraph(BaseBlock):
+    """
+    Создает текстовый абзац с настройками форматирования.
+    
+    Параметры:
+    - text: Текст абзаца
+    - style_name: Название стиля (из шаблона docx)
+    - is_bold: Жирное начертание
+    - is_cursive: Курсивное начертание
+    - x_align: Горизонтальное выравнивание ('left', 'center', 'right')
+    - y_align: Вертикальное выравнивание ('top', 'center', 'bottom')
+    
+    Пример использования:
+    >>> p = Paragraph(
+    ...     "Анализ данных за 2023 год",
+    ...     style_name="Heading1",
+    ...     is_bold=True,
+    ...     x_align='center'
+    ... )
+    >>> elements.append(p)
+    """
     def __init__(
         self,
         text: str,
@@ -63,6 +93,27 @@ class Paragraph(BaseBlock):
             p.vertical_alignment = self.MAP_ALIGMENT[self.y_align]
 
 class Table(BaseBlock):
+    """
+    Вставляет таблицу из DataFrame Polars с аннотацией и настройками форматирования.
+    
+    Параметры:
+    - df: DataFrame Polars
+    - style_name: Стиль таблицы
+    - x_align: Горизонтальное выравнивание ячеек
+    - y_align: Вертикальное выравнивание ячеек
+    - annotation_text: Текст примечания под таблицей
+    - bold_first_col: Жирное начертание первого столбца
+    - is_show_none: Отображать None значения как пустые ячейки
+    
+    Пример использования:
+    >>> df = pl.DataFrame({"Метрика": ["ROI", "CTR"], "Значение": [15.2, 4.7]})
+    >>> tbl = Table(
+    ...     df,
+    ...     annotation_text="Таблица 1: Ключевые метрики",
+    ...     bold_first_col=True
+    ... )
+    >>> elements.append(tbl)
+    """
     def __init__(
         self,
         df: pl.DataFrame,
@@ -100,7 +151,7 @@ class Table(BaseBlock):
         )
 
         for j, colname in enumerate(self.df.columns):
-            self.delete_paragraph(table.cell(i + 1, j).paragraphs[0]) #.clear() is not working
+            self.delete_paragraph(table.cell(0, j).paragraphs[0]) #.clear() is not working
             
             Paragraph(
                 colname,
@@ -130,6 +181,30 @@ class Table(BaseBlock):
                 table.cell(i + 1, j).vertical_alignment = self.MAP_ALIGMENT[self.y_align]
 
 class Image(BaseBlock):
+    """
+    Вставляет изображение из matplotlib Figure с аннотацией.
+    
+    Параметры:
+    - fig: Объект Figure matplotlib
+    - filename: Путь для сохранения изображения
+    - dpi: Разрешение изображения
+    - width_inch: Ширина в дюймах
+    - height_inch: Высота в дюймах
+    - annotation_text: Текст примечания под изображением
+    - annotation_style_name: Стиль аннотации
+    - is_tight: Обрезка полей изображения
+    
+    Пример использования:
+    >>> fig, ax = plt.subplots()
+    >>> ax.plot([1, 2, 3], [10, 20, 15])
+    >>> img = Image(
+    ...     fig,
+    ...     "plot.png",
+    ...     width_inch=6.0,
+    ...     annotation_text="Рисунок 1: Динамика показателей"
+    ... )
+    >>> elements.append(img)
+    """
     def __init__(
         self,
         fig: mpl.figure.Figure,
@@ -169,6 +244,41 @@ class Image(BaseBlock):
 
 # flat container of elements
 class Elements:
+    """
+    Контейнер для элементов документа. Генерирует итоговый docx файл.
+    
+    Параметры:
+    - docx_name: Путь к шаблону документа (.docx)
+    - elements: Список элементов (Paragraph, Table, Image и др.)
+    
+    Комплексный пример использования:
+
+    >>> from docx_blocks import Paragraph, Table, Image, PageBreak, Elements
+    >>> import polars as pl
+    >>> import matplotlib.pyplot as plt
+    >>> 
+    >>> elements = [
+    ...    Paragraph("Отчет по анализу данных", style_name="Title", is_bold=True, x_align='center'),
+    ...    
+    ...    Table(
+    ...        pl.DataFrame({"Категория": ["A", "B"], "Сумма": [450, 780]}),
+    ...        annotation_text="Таблица 1: Финансовые показатели",
+    ...        bold_first_col=True
+    ...    ),
+    ...    
+    ...    Image(
+    ...        plt.figure(figsize=(8, 5)),
+    ...        "sales_chart.png",
+    ...        width_inch=7.0,
+    ...        annotation_text="Рисунок 1: Диаграмма продаж"
+    ...    ),
+    ...    
+    ...    PageBreak()
+    ...]
+    >>>
+    >>> doc = Elements("company_template.docx", elements)
+    >>> doc.make_docx("financial_report_Q1.docx")
+    """
     def __init__(self, docx_name: str, elements: list):
         self.elements = elements
         self.docx = docx.Document(docx_name)
