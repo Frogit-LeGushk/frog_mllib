@@ -282,8 +282,20 @@ class Elements:
     def __init__(self, docx_name: str, elements: list):
         self.elements = elements
         self.docx = docx.Document(docx_name)
+
+    def get_list_style_names(self):
+        return [s.name for s in self.docx.styles]
     
     def make_docx(self, filename: str):
-        for el in self.elements:
+        print('Start generating:')
+        
+        for n, el in enumerate(self.elements):
+            if isinstance(el, str): 
+                print(f'[{n}] skip text block')
+                continue
+
+            print(f'[{n}] append block {el.__class__.__name__}')
             el.add_docx(self.docx)
+
         self.docx.save(filename)
+        print('Done!')
