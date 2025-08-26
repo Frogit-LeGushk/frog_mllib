@@ -42,7 +42,7 @@ class PageBreak(BaseBlock):
         super().__init__()
     
     def add_docx(self, dock: docx.Document):
-        dock.add_page_break()
+        return dock.add_page_break()
 
 class Paragraph(BaseBlock):
     """
@@ -92,6 +92,7 @@ class Paragraph(BaseBlock):
             p.alignment = self.MAP_ALIGMENT[self.x_align]
         if self.y_align is not None:
             p.vertical_alignment = self.MAP_ALIGMENT[self.y_align]
+        return p
 
 class Table(BaseBlock):
     """
@@ -249,8 +250,42 @@ class Latex(BaseBlock):
         self.style_name = style_name
 
     def add_docx(self, dock: docx.Document):
-        self.p = dock.add_paragraph(style = self.style_name)
-        math2docx.add_math(self.p, self.latex_text)
+        p = dock.add_paragraph(style = self.style_name)
+        return math2docx.add_math(p, self.latex_text)
+
+class Link(BaseBlock):
+    def __init__(
+        self,
+        url: str,
+        **kvargs
+    ):
+        super().__init__()
+        self.url = url
+        self.kvargs = kvargs
+
+    def add_hyperlink_docx(self, paragraph, text, url):
+        # This gets access to the document.xml.rels file and gets a new relation id value
+        part = paragraph.part
+        r_id = part.relate_to(url, docx.opc.constants.RELATIONSHIP_TYPE.HYPERLINK, is_external=True)
+    
+        # Create the w:hyperlink tag and add needed values
+        hyperlink = docx.oxml.shared.OxmlElement('w:hyperlink')
+        hyperlink.set(docx.oxml.shared.qn('r:id'), r_id, )
+    
+        # Create a new run object (a wrapper over a 'w:r' element)
+        new_run = docx.text.run.Run(
+            docx.oxml.shared.OxmlElement('w:r'), paragraph)
+        new_run.text = text
+    
+        # Join all the xml elements together
+        hyperlink.append(new_run._element)
+        paragraph._p.append(hyperlink)
+        return hyperlink
+
+    def add_docx(self, el: Union[docx.Document, docx.table._Cell]):
+        p = Paragraph(**self.kvargs).add_docx(el)
+        hl = self.add_hyperlink_docx(p, self.kvargs['text'], self.url)
+        return hl
 
 # flat container of elements
 class Elements:
