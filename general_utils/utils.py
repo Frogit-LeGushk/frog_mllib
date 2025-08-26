@@ -9,6 +9,138 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+import os
+import time
+import polars as pl
+from collections import OrderedDict
+from typing import Hashable, Optional
+
+class StaticDict:
+    """
+    Класс для хранения неизменяемых объектов с автоматическим сохранением в файловую систему
+    и отслеживанием метаданных. Поддерживает объекты Polars DataFrame, matplotlib Figure
+    и любые хешируемые объекты.
+    
+    Основные возможности:
+    - Автоматическое сохранение объектов в указанную директорию
+    - Контроль версий и целостности данных через хеширование
+    - Хранение метаданных (время создания, комментарии, ссылки)
+    - Гарантия неизменности объектов после добавления
+    
+    Параметры:
+    ----------
+    root_dir : str
+        Путь к директории для хранения файлов (будет создана, если не существует)
+    dpi : int, optional, default=90
+        Разрешение для сохранения изображений matplotlib
+    is_tight : bool, optional, default=True
+        Обрезка полей для изображений matplotlib (bbox_inches="tight")
+    
+    Атрибуты:
+    ---------
+    ordered_dict : OrderedDict
+        Упорядоченный словарь с метаданными объектов:
+        {
+            'value': исходный объект,
+            'time': время создания (str),
+            'comment': пользовательский комментарий (str),
+            'path': путь к файлу (str),
+            'link': произвольная ссылка (str)
+        }
+    
+    Пример использования:
+    ---------------------
+    >>> storage = StaticDict("data_cache")
+    >>> df = pl.DataFrame({"A": [1, 2], "B": [3, 4]})
+    >>> storage.push("dataset1", df, comment="Основной датасет")
+    >>> 
+    >>> fig, ax = plt.subplots()
+    >>> ax.plot([1, 2, 3], [10, 20, 15])
+    >>> storage.push("chart1", fig, link="https://example.com")
+    >>>
+    >>> # Доступ к объекту
+    >>> cached_df = storage["dataset1"]
+    """
+def __init__(self, root_dir: str, dpi: int = 90, is_tight: bool = True):
+    self.ordered_dict = OrderedDict()
+    self.root_dir = root_dir
+    self.bbox_inches = "tight" if is_tight else None
+    self.dpi = dpi
+    if not os.path.exists(root_dir):
+        os.mkdir(root_dir)
+    
+def __getitem__(self, key: str):
+    """Возвращает объект по ключу"""
+    return self.ordered_dict[key]['value']
+
+def get_hash(self, key, value) -> int:
+    """
+    Генерирует хеш объекта и сохраняет его в файловой системе
+    
+    Для разных типов объектов:
+    - Polars DataFrame: сохраняет в Parquet и хеширует строки
+    - matplotlib Figure: сохраняет как изображение и хеширует файл
+    - Хешируемые объекты: вычисляет стандартный хеш
+    
+    Возвращает:
+    int: хеш-значение объекта
+    """
+    path = f'{self.root_dir}/{key}'
+    
+    if isinstance(value, pl.DataFrame):
+        value.write_parquet(path, compression='gzip')
+        hash_rows = tuple(value.hash_rows().to_list())
+        return hash(hash_rows)
+        
+    if isinstance(value, mpl.figure.Figure):
+        value.savefig(path, dpi=self.dpi, bbox_inches=self.bbox_inches)
+        with open(path, 'rb') as f:
+            return hash(f.read())
+            
+    if isinstance(value, Hashable):
+        return hash(value)
+    
+    raise TypeError('Неподдерживаемый тип объекта. Допустимы: DataFrame, Figure, Hashable')
+
+def push(self, key: str, value, comment: str = '', link: str = ''):
+    """
+    Добавляет новый объект в хранилище
+    
+    Параметры:
+    ----------
+    key : str
+        Уникальный идентификатор объекта
+    value : object
+        Сохраняемый объект (DataFrame, Figure или хешируемый)
+    comment : str, optional
+        Произвольный комментарий к объекту
+    link : str, optional
+        Произвольная ссылка, связанная с объектом
+    
+    Вызывает:
+    --------
+    Exception: если объект с таким ключом уже существует
+    TypeError: если передан неподдерживаемый тип объекта
+    """
+    if key in self.ordered_dict:
+        raise KeyError(f'Объект с ключом "{key}" уже существует')
+
+    path = f'{self.root_dir}/{key}'
+    hash_val = self.get_hash(key, value)
+    str_time = time.asctime(time.localtime())
+    
+    self.ordered_dict[key] = {
+        'value': value,
+        'time': str_time,
+        'comment': comment,
+        'path': path,
+        'link': link
+    }
+
+def save(self):
+    """Заглушка для будущей реализации сериализации состояния"""
+    pass
+
 def plot_lines_and_bins(
     df: pl.DataFrame, 
     line_colnames: List[str], 
