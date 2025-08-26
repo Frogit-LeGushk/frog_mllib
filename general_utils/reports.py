@@ -1,6 +1,7 @@
 from typing import Optional, Union
 
 import docx
+import math2docx
 from docx.shared import Inches
 
 import matplotlib as mpl
@@ -241,6 +242,15 @@ class Image(BaseBlock):
             width = Inches(self.width_inch) if self.width_inch else None,
             height = Inches(self.height_inch) if self.height_inch else None
         )
+
+class Latex(BaseBlock):
+    def __init__(self, latex_text: str, style_name: str):
+        self.latex_text = latex_text
+        self.style_name = style_name
+
+    def add_docx(self, dock: docx.Document):
+        self.p = dock.add_paragraph(style = self.style_name)
+        math2docx.add_math(self.p, self.latex_text)
 
 # flat container of elements
 class Elements:
