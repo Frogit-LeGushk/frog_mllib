@@ -30,7 +30,7 @@
 
 - добавить декоратор трансформации pandas -> polars -> pandas. Полезно для legacy методов, которые используют pandas
 
-# TODO utils.py:
+# TODO cursors.py
 
 - поддержка кода
 
