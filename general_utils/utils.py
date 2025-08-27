@@ -1,4 +1,7 @@
-from typing import Optional, List
+import os
+import time
+import hashlib
+import json
 
 import numpy as np
 import pandas as pd
@@ -9,11 +12,9 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-import os
-import time
-import polars as pl
 from collections import OrderedDict
-from typing import Hashable, Optional
+from typing import Hashable, Optional, Union
+
 
 class StaticDict:
     """
